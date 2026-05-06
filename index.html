@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Property Listing — JC Gagnaire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- ============================================================
+     LISTING DATA — EDIT THIS BLOCK FOR EACH NEW LISTING
+     ============================================================
+     - Update the fields below with this listing's info.
+     - Drop photos into the photos/ folder using these names:
+         photos/hero.jpg              (full-width banner image)
+         photos/01.jpg ... 50.jpg     (gallery, in order)
+         photos/floorplan-1.jpg       (main floor)
+         photos/floorplan-2.jpg       (upper floor, optional)
+         photos/floorplan-3.jpg       (lower floor, optional)
+         photos/broker.jpg            (broker headshot)
+     - .jpg / .jpeg / .png / .webp all work.
+     - The page auto-detects which photos exist; missing ones are skipped.
+     ============================================================ -->
+<script id="listing-data" type="application/json">
+{
+  "address": "123 Example Street",
+  "city": "Seattle, WA",
+  "price": "$0,000,000",
+  "stats": {
+    "beds": "0",
+    "baths": "0",
+    "sqft": "0,000",
+    "lot": "0,000"
+  },
+  "descTitle": "An Exceptional Home",
+  "description": [
+    "Add a paragraph describing this property — its setting, character, finishes, layout, and what makes it special.",
+    "Add a second paragraph if needed. You can also list features, recent updates, or neighborhood highlights here."
+  ],
+  "floorplanLabels": ["Main Level", "Upper Level", "Lower Level"],
+  "tourUrl": "",
+  "map": {
+    "lat": 47.6062,
+    "lon": -122.3321,
+    "zoom": 15
+  },
+  "broker": {
+    "name": "JC Gagnaire",
+    "title": "Real Estate Broker",
+    "bio": "Add JC's bio here — experience, areas of expertise, and approach to working with clients.",
+    "phone": "(000) 000-0000",
+    "email": "jc@jcgagnaire.com"
+  }
+}
+</script>
+
+<style>
+  :root {
+    --bg: #faf8f5;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --line: #e6e2dc;
+    --accent: #8a7a5c;
+    --accent-dark: #6b5e44;
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: 0.01em; margin: 0; }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+
+  /* ---------- NAV ---------- */
+  nav.topnav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 40px;
+    background: transparent;
+    transition: background 0.3s ease, box-shadow 0.3s ease, padding 0.3s ease;
+  }
+  nav.topnav.scrolled {
+    background: rgba(250, 248, 245, 0.96);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 1px 0 var(--line);
+    padding: 12px 40px;
+  }
+  nav.topnav .brand {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.04em;
+    transition: color 0.3s ease;
+  }
+  nav.topnav.scrolled .brand { color: var(--ink); }
+  nav.topnav .links {
+    display: flex; gap: 28px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #fff;
+    transition: color 0.3s ease;
+  }
+  nav.topnav.scrolled .links { color: var(--ink); }
+  nav.topnav .links a { position: relative; padding: 4px 0; }
+  nav.topnav .links a::after {
+    content: ''; position: absolute; left: 0; bottom: 0;
+    width: 0; height: 1px; background: currentColor;
+    transition: width 0.25s ease;
+  }
+  nav.topnav .links a:hover::after { width: 100%; }
+  @media (max-width: 720px) {
+    nav.topnav { padding: 14px 20px; }
+    nav.topnav .links { gap: 14px; font-size: 11px; }
+    nav.topnav .brand { font-size: 18px; }
+  }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    position: relative;
+    height: 100vh; min-height: 560px;
+    color: #fff;
+    overflow: hidden;
+    background: #2a2a2a;
+  }
+  .hero .hero-img {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .hero .scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none;
+  }
+  .hero .hero-content {
+    position: absolute; left: 0; right: 0; bottom: 60px;
+    text-align: center; padding: 0 24px;
+  }
+  .hero h1 {
+    font-size: clamp(36px, 6vw, 68px);
+    line-height: 1.05;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 16px rgba(0,0,0,0.3);
+  }
+  .hero .city {
+    font-size: 14px;
+    text-transform: uppercase; letter-spacing: 0.3em;
+    opacity: 0.9;
+  }
+  .hero .price {
+    margin-top: 30px;
+    font-family: var(--serif);
+    font-size: clamp(24px, 3vw, 34px);
+    font-weight: 500;
+  }
+  .hero .scroll-hint {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  /* ---------- SECTIONS ---------- */
+  section.block {
+    padding: 90px 40px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  section.block.full { max-width: none; padding-left: 0; padding-right: 0; }
+  .section-head {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .section-head .eyebrow {
+    font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.3em;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .section-head h2 {
+    font-size: clamp(30px, 4vw, 44px);
+  }
+  .section-head .lede {
+    max-width: 680px; margin: 18px auto 0;
+    color: var(--muted); font-size: 16px;
+  }
+  .divider {
+    width: 40px; height: 1px; background: var(--accent);
+    margin: 0 auto 18px;
+  }
+
+  /* ---------- QUICK STATS ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+  }
+  .stats .stat {
+    padding: 30px 20px;
+    text-align: center;
+    border-right: 1px solid var(--line);
+  }
+  .stats .stat:last-child { border-right: none; }
+  .stats .stat .num {
+    font-family: var(--serif);
+    font-size: 32px; font-weight: 500; line-height: 1;
+    margin-bottom: 6px;
+  }
+  .stats .stat .lbl {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--muted);
+  }
+  @media (max-width: 720px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stats .stat:nth-child(2) { border-right: none; }
+    .stats .stat:nth-child(1), .stats .stat:nth-child(2) { border-bottom: 1px solid var(--line); }
+  }
+
+  /* ---------- DESCRIPTION ---------- */
+  .description {
+    max-width: 760px; margin: 0 auto;
+    font-size: 17px; line-height: 1.75; color: #333;
+    text-align: center;
+  }
+  .description p { margin: 0 0 18px; }
+  .description p:last-child { margin-bottom: 0; }
+
+  /* ---------- GALLERY ---------- */
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  @media (max-width: 900px) { .gallery { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 540px) { .gallery { grid-template-columns: 1fr; } }
+  .gallery .featured { grid-column: 1 / -1; aspect-ratio: 16 / 9; }
+  .photo-slot {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    background: #ece7df;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .photo-slot img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+  }
+  .photo-slot:hover img { transform: scale(1.04); }
+  .gallery-empty {
+    grid-column: 1 / -1;
+    text-align: center; color: var(--muted);
+    padding: 40px; border: 1px dashed var(--line);
+    font-size: 14px;
+  }
+
+  /* ---------- FLOOR PLANS ---------- */
+  .floorplans {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  @media (max-width: 800px) { .floorplans { grid-template-columns: 1fr; } }
+  .floorplans .photo-slot {
+    background: #fff;
+    aspect-ratio: 4 / 5;
+    border: 1px solid var(--line);
+  }
+  .floorplans .photo-slot img { object-fit: contain; padding: 16px; background: #fff; }
+  .floorplans .label {
+    position: absolute; bottom: 12px; left: 12px;
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted);
+    background: rgba(255,255,255,0.92); padding: 4px 10px;
+  }
+
+  /* ---------- 3D TOUR ---------- */
+  .tour-frame {
+    aspect-ratio: 16 / 9;
+    background: #1f1f1f;
+    border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    color: #888;
+    overflow: hidden;
+  }
+  .tour-frame iframe { width: 100%; height: 100%; border: 0; }
+  .tour-frame .placeholder {
+    text-align: center; padding: 40px;
+  }
+  .tour-frame .placeholder .icon {
+    font-family: var(--serif); font-size: 60px; opacity: 0.5; margin-bottom: 16px;
+  }
+  .tour-frame .placeholder p { margin: 6px 0; font-size: 14px; }
+
+  /* ---------- MAP ---------- */
+  #map { height: 480px; border: 1px solid var(--line); }
+
+  /* ---------- BROKER ---------- */
+  .broker-section {
+    background: #fff;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .broker-card {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 60px;
+    align-items: center;
+    max-width: 1080px; margin: 0 auto;
+  }
+  @media (max-width: 800px) {
+    .broker-card { grid-template-columns: 1fr; gap: 30px; text-align: center; }
+  }
+  .broker-photo {
+    aspect-ratio: 1; width: 100%;
+    border-radius: 50%;
+    background: #ece7df;
+    overflow: hidden;
+    position: relative;
+  }
+  .broker-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .broker-photo .initials {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-size: 96px; color: #b8ad99;
+  }
+  .broker-info h3 { font-size: 38px; margin-bottom: 6px; }
+  .broker-info .title {
+    font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--accent);
+    margin-bottom: 24px;
+  }
+  .broker-info .bio {
+    color: #444; line-height: 1.7; margin-bottom: 24px; font-size: 15px;
+  }
+  .broker-info .contact-line {
+    display: flex; gap: 24px; flex-wrap: wrap; font-size: 14px;
+  }
+  @media (max-width: 800px) { .broker-info .contact-line { justify-content: center; } }
+  .broker-info .contact-line span { color: var(--muted); margin-right: 6px; }
+
+  /* ---------- CONTACT FORM ---------- */
+  .contact-form {
+    max-width: 620px; margin: 0 auto;
+    display: grid; gap: 14px;
+  }
+  .contact-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 540px) { .contact-form .row { grid-template-columns: 1fr; } }
+  .contact-form input, .contact-form textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    background: #fff;
+    font-family: inherit; font-size: 14px;
+    color: var(--ink);
+    border-radius: 0;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .contact-form input:focus, .contact-form textarea:focus { border-color: var(--accent); }
+  .contact-form textarea { min-height: 130px; resize: vertical; }
+  .btn {
+    display: inline-block;
+    padding: 12px 32px;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.2em;
+    border: 1px solid var(--ink); background: transparent; color: var(--ink);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-family: var(--sans);
+  }
+  .btn:hover { background: var(--ink); color: var(--bg); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+  .contact-form button { justify-self: center; margin-top: 10px; }
+  .form-msg {
+    text-align: center;
+    color: var(--accent-dark);
+    font-size: 14px;
+    min-height: 20px;
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer {
+    background: var(--ink);
+    color: #c8c2b8;
+    text-align: center;
+    padding: 50px 24px;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+  }
+  footer .brand-foot {
+    font-family: var(--serif); font-size: 24px; color: #fff; margin-bottom: 8px;
+  }
+  footer .copy { opacity: 0.6; font-size: 12px; margin-top: 14px; }
+
+  /* ---------- LIGHTBOX ---------- */
+  .lightbox {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.94);
+    z-index: 1000;
+    display: none;
+    align-items: center; justify-content: center;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 92vw; max-height: 92vh; object-fit: contain; }
+  .lightbox .close, .lightbox .nav-btn {
+    position: absolute;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    width: 48px; height: 48px;
+    cursor: pointer;
+    font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .lightbox .close:hover, .lightbox .nav-btn:hover { background: rgba(255,255,255,0.25); }
+  .lightbox .close { top: 24px; right: 24px; border-radius: 50%; }
+  .lightbox .prev { left: 24px; top: 50%; transform: translateY(-50%); }
+  .lightbox .next { right: 24px; top: 50%; transform: translateY(-50%); }
+  .lightbox .counter {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    color: #fff; font-size: 13px; letter-spacing: 0.2em;
+  }
+
+  /* hide sections that have nothing to show */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<nav class="topnav" id="topnav">
+  <div class="brand" id="brandName">JC Gagnaire</div>
+  <div class="links">
+    <a href="#images">Images</a>
+    <a href="#floorplans">Floor Plans</a>
+    <a href="#tour">3D Tour</a>
+    <a href="#map-section">Map</a>
+    <a href="#contact">Contact</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="hero-img" id="heroImg"></div>
+  <div class="scrim"></div>
+  <div class="hero-content">
+    <div class="city" id="cityText"></div>
+    <h1 id="addressText"></h1>
+    <div class="price" id="priceText"></div>
+  </div>
+  <div class="scroll-hint">Scroll</div>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="num" id="statBeds"></div><div class="lbl">Bedrooms</div></div>
+  <div class="stat"><div class="num" id="statBaths"></div><div class="lbl">Bathrooms</div></div>
+  <div class="stat"><div class="num" id="statSqft"></div><div class="lbl">Sq Ft</div></div>
+  <div class="stat"><div class="num" id="statLot"></div><div class="lbl">Lot Sq Ft</div></div>
+</div>
+
+<section class="block">
+  <div class="section-head">
+    <div class="divider"></div>
+    <div class="eyebrow">Property</div>
+    <h2 id="descTitle"></h2>
+  </div>
+  <div class="description" id="descBody"></div>
+</section>
+
+<section class="block" id="images">
+  <div class="section-head">
+    <div class="divider"></div>
+    <div class="eyebrow">Gallery</div>
+    <h2>Images</h2>
+  </div>
+  <div class="gallery" id="galleryGrid"></div>
+</section>
+
+<section class="block" id="floorplansSection">
+  <div class="section-head">
+    <div class="divider"></div>
+    <div class="eyebrow">Layout</div>
+    <h2>Floor Plans</h2>
+  </div>
+  <div class="floorplans" id="floorplanGrid"></div>
+</section>
+
+<section class="block" id="tour">
+  <div class="section-head">
+    <div class="divider"></div>
+    <div class="eyebrow">Walkthrough</div>
+    <h2>3D Tour</h2>
+  </div>
+  <div class="tour-frame" id="tourFrame">
+    <div class="placeholder">
+      <div class="icon">&#9711;</div>
+      <p><strong>Coming Soon</strong></p>
+    </div>
+  </div>
+</section>
+
+<section class="block full" id="map-section">
+  <div class="section-head" style="padding: 0 24px;">
+    <div class="divider"></div>
+    <div class="eyebrow">Location</div>
+    <h2>Map</h2>
+  </div>
+  <div id="map"></div>
+</section>
+
+<section class="block broker-section" id="contact">
+  <div class="broker-card">
+    <div class="broker-photo" id="brokerPhoto"><div class="initials" id="brokerInitials"></div></div>
+    <div class="broker-info">
+      <h3 id="brokerName"></h3>
+      <div class="title" id="brokerTitle"></div>
+      <div class="bio" id="brokerBio"></div>
+      <div class="contact-line">
+        <div><span>P</span><a id="brokerPhone" href="#"></a></div>
+        <div><span>E</span><a id="brokerEmail" href="#"></a></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 70px;">
+    <div class="section-head">
+      <div class="divider"></div>
+      <div class="eyebrow">Inquire</div>
+      <h2>Request More Information</h2>
+    </div>
+    <form class="contact-form" id="contactForm">
+      <div class="row">
+        <input type="text" name="name" placeholder="Name" required />
+        <input type="email" name="email" placeholder="Email" required />
+      </div>
+      <input type="tel" name="phone" placeholder="Phone" />
+      <textarea name="message" placeholder="Message" required></textarea>
+      <input type="hidden" name="_subject" value="New listing inquiry" />
+      <input type="hidden" name="_template" value="table" />
+      <input type="hidden" name="_captcha" value="false" />
+      <input type="hidden" name="property_address" id="propertyAddressField" value="" />
+      <div class="form-msg" id="formMsg"></div>
+      <button type="submit" class="btn primary">Send Inquiry</button>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="brand-foot" id="footName">JC Gagnaire</div>
+  <div id="footTitle"></div>
+  <div class="copy">&copy; <span id="year"></span> &middot; All rights reserved</div>
+</footer>
+
+<div class="lightbox" id="lightbox">
+  <button class="close" id="lbClose">&times;</button>
+  <button class="nav-btn prev" id="lbPrev">&#8249;</button>
+  <button class="nav-btn next" id="lbNext">&#8250;</button>
+  <img id="lbImg" alt="" />
+  <div class="counter" id="lbCounter"></div>
+</div>
+
+<script>
+(function () {
+  const data = JSON.parse(document.getElementById('listing-data').textContent);
+  const PHOTO_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'JPG', 'JPEG', 'PNG'];
+  const GALLERY_MAX = 50;
+  const FLOORPLAN_MAX = 3;
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // ---------- Populate text from data ----------
+  document.getElementById('cityText').textContent = data.city || '';
+  document.getElementById('addressText').textContent = data.address || '';
+  document.getElementById('priceText').textContent = data.price || '';
+  document.getElementById('statBeds').textContent = data.stats?.beds ?? '';
+  document.getElementById('statBaths').textContent = data.stats?.baths ?? '';
+  document.getElementById('statSqft').textContent = data.stats?.sqft ?? '';
+  document.getElementById('statLot').textContent = data.stats?.lot ?? '';
+  document.getElementById('descTitle').textContent = data.descTitle || '';
+  const descBody = document.getElementById('descBody');
+  (data.description || []).forEach(p => {
+    const el = document.createElement('p');
+    el.textContent = p;
+    descBody.appendChild(el);
+  });
+
+  // Broker
+  const b = data.broker || {};
+  document.getElementById('brandName').textContent = b.name || 'Broker';
+  document.getElementById('footName').textContent = b.name || '';
+  document.getElementById('footTitle').textContent = b.title || '';
+  document.getElementById('brokerName').textContent = b.name || '';
+  document.getElementById('brokerTitle').textContent = b.title || '';
+  document.getElementById('brokerBio').textContent = b.bio || '';
+  const phoneEl = document.getElementById('brokerPhone');
+  phoneEl.textContent = b.phone || '';
+  phoneEl.href = b.phone ? 'tel:' + b.phone.replace(/[^0-9+]/g, '') : '#';
+  const emailEl = document.getElementById('brokerEmail');
+  emailEl.textContent = b.email || '';
+  emailEl.href = b.email ? 'mailto:' + b.email : '#';
+  // initials fallback
+  const initials = (b.name || '').split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  document.getElementById('brokerInitials').textContent = initials;
+
+  // Property address into hidden form field
+  document.getElementById('propertyAddressField').value =
+    [data.address, data.city].filter(Boolean).join(', ');
+
+  // Page title
+  if (data.address) document.title = data.address + ' — ' + (b.name || 'Listing');
+
+  // ---------- Photo loader ----------
+  function tryLoad(base) {
+    return new Promise(resolve => {
+      let i = 0;
+      function next() {
+        if (i >= PHOTO_EXTS.length) return resolve(null);
+        const url = `${base}.${PHOTO_EXTS[i++]}`;
+        const test = new Image();
+        test.onload = () => resolve(url);
+        test.onerror = next;
+        test.src = url;
+      }
+      next();
+    });
+  }
+
+  // Hero
+  tryLoad('photos/hero').then(url => {
+    if (url) document.getElementById('heroImg').style.backgroundImage = `url("${url}")`;
+  });
+
+  // Broker headshot
+  tryLoad('photos/broker').then(url => {
+    if (!url) return;
+    const wrap = document.getElementById('brokerPhoto');
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = b.name || '';
+    wrap.appendChild(img);
+    document.getElementById('brokerInitials').remove();
+  });
+
+  // Gallery — try 01..50 in parallel, render in numerical order
+  const galleryGrid = document.getElementById('galleryGrid');
+  const galleryAttempts = [];
+  for (let i = 1; i <= GALLERY_MAX; i++) {
+    const num = String(i).padStart(2, '0');
+    galleryAttempts.push(tryLoad(`photos/${num}`).then(url => ({ i, url })));
+  }
+  Promise.all(galleryAttempts).then(results => {
+    const found = results.filter(r => r.url).sort((a, b) => a.i - b.i);
+    if (found.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'gallery-empty';
+      empty.textContent = 'Photos coming soon.';
+      galleryGrid.appendChild(empty);
+      return;
+    }
+    found.forEach((r, idx) => {
+      const slot = document.createElement('div');
+      slot.className = 'photo-slot' + (idx === 0 ? ' featured' : '');
+      const img = document.createElement('img');
+      img.src = r.url;
+      img.alt = `Photo ${r.i}`;
+      img.loading = 'lazy';
+      slot.appendChild(img);
+      slot.addEventListener('click', () => openLightbox(idx));
+      galleryGrid.appendChild(slot);
+    });
+  });
+
+  // Floor plans
+  const floorplanGrid = document.getElementById('floorplanGrid');
+  const fpLabels = data.floorplanLabels || [];
+  const fpAttempts = [];
+  for (let i = 1; i <= FLOORPLAN_MAX; i++) {
+    fpAttempts.push(tryLoad(`photos/floorplan-${i}`).then(url => ({ i, url })));
+  }
+  Promise.all(fpAttempts).then(results => {
+    const found = results.filter(r => r.url).sort((a, b) => a.i - b.i);
+    if (found.length === 0) {
+      document.getElementById('floorplansSection').classList.add('hidden');
+      return;
+    }
+    found.forEach(r => {
+      const slot = document.createElement('div');
+      slot.className = 'photo-slot';
+      const img = document.createElement('img');
+      img.src = r.url;
+      img.alt = fpLabels[r.i - 1] || `Floor plan ${r.i}`;
+      img.loading = 'lazy';
+      slot.appendChild(img);
+      const lbl = document.createElement('div');
+      lbl.className = 'label';
+      lbl.textContent = fpLabels[r.i - 1] || `Floor ${r.i}`;
+      slot.appendChild(lbl);
+      slot.addEventListener('click', () => openLightboxByUrl(r.url));
+      floorplanGrid.appendChild(slot);
+    });
+  });
+
+  // ---------- 3D Tour ----------
+  if (data.tourUrl) {
+    const tf = document.getElementById('tourFrame');
+    tf.innerHTML = '';
+    const ifr = document.createElement('iframe');
+    ifr.src = data.tourUrl;
+    ifr.allow = 'fullscreen; xr-spatial-tracking';
+    ifr.allowFullscreen = true;
+    tf.appendChild(ifr);
+  }
+
+  // ---------- Map ----------
+  const m = data.map || {};
+  const lat = isFinite(m.lat) ? m.lat : 47.6062;
+  const lon = isFinite(m.lon) ? m.lon : -122.3321;
+  const zoom = isFinite(m.zoom) ? m.zoom : 15;
+  const map = L.map('map').setView([lat, lon], zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  L.marker([lat, lon]).addTo(map);
+
+  // ---------- Sticky nav ----------
+  const nav = document.getElementById('topnav');
+  function onScroll() {
+    if (window.scrollY > 60) nav.classList.add('scrolled');
+    else nav.classList.remove('scrolled');
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // ---------- Lightbox ----------
+  const lb = document.getElementById('lightbox');
+  const lbImg = document.getElementById('lbImg');
+  const lbCounter = document.getElementById('lbCounter');
+  let lbList = [], lbIndex = 0;
+
+  function rebuildLbList() {
+    lbList = Array.from(galleryGrid.querySelectorAll('img'));
+  }
+  function openLightbox(i) {
+    rebuildLbList();
+    lbIndex = i;
+    showLb();
+    lb.classList.add('open');
+  }
+  function openLightboxByUrl(url) {
+    lbList = [{ src: url }];
+    lbIndex = 0;
+    showLb();
+    lb.classList.add('open');
+  }
+  function showLb() {
+    if (!lbList.length) return;
+    lbImg.src = lbList[lbIndex].src;
+    lbCounter.textContent = (lbIndex + 1) + ' / ' + lbList.length;
+  }
+  document.getElementById('lbClose').addEventListener('click', () => lb.classList.remove('open'));
+  document.getElementById('lbPrev').addEventListener('click', () => { lbIndex = (lbIndex - 1 + lbList.length) % lbList.length; showLb(); });
+  document.getElementById('lbNext').addEventListener('click', () => { lbIndex = (lbIndex + 1) % lbList.length; showLb(); });
+  lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
+  document.addEventListener('keydown', e => {
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') lb.classList.remove('open');
+    if (e.key === 'ArrowLeft') document.getElementById('lbPrev').click();
+    if (e.key === 'ArrowRight') document.getElementById('lbNext').click();
+  });
+
+  // ---------- Contact form ----------
+  document.getElementById('contactForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const form = e.target;
+    const msg = document.getElementById('formMsg');
+    const inbox = (data.broker && data.broker.email) || 'jc@jcgagnaire.com';
+    msg.style.color = '';
+    msg.textContent = 'Sending...';
+
+    const subj = form.querySelector('input[name="_subject"]');
+    const fullAddr = [data.address, data.city].filter(Boolean).join(', ');
+    if (fullAddr) subj.value = 'Listing Inquiry — ' + fullAddr;
+
+    try {
+      const resp = await fetch('https://formsubmit.co/ajax/' + encodeURIComponent(inbox), {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(new FormData(form)))
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (resp.ok && (j.success === true || j.success === 'true')) {
+        msg.textContent = 'Thank you — your inquiry has been sent.';
+        form.reset();
+      } else {
+        msg.style.color = '#a33';
+        msg.textContent = 'Could not send. Please email ' + inbox + ' directly.';
+      }
+    } catch (err) {
+      msg.style.color = '#a33';
+      msg.textContent = 'Network error. Please email ' + inbox + ' directly.';
+    }
+  });
+})();
+</script>
+</body>
+</html>
